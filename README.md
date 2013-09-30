@@ -9,6 +9,7 @@ dtinfo <files to parse>
 
 Example:
 
+```
 python dtinfo.py data/*
 
 data\WSDataDevTool-www.google.com-3G
@@ -19,3 +20,4 @@ data\WSDataDevTool-www.google.com-noThrottle
   onload: 1.376
 data\WSDataDevTool-www.google.com-Wifi
   onload: 1.351
+```

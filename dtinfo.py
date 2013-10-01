@@ -47,17 +47,7 @@ def ProcessDevTools(events):
                   'params' in event and
                   'timestamp' in event['params']):
                 event['timestamp'] = event['params']['timestamp'];
-            else:
-                print 'hello'
-            if started:
-                if (event['method'] == 'Network.requestWillBeSent' and
-                    (stats['startTime'] == 0 or
-                     event['timestamp'] < stats['startTime'])):
-                    stats['startTime'] = event['timestamp'];
-                if (event['method'] == 'Page.loadEventFired' and
-                    event['timestamp'] > stats['onload']):
-                    stats['onload'] = event['timestamp'];
-            else:
+            if not started:
                 url = ''
                 if (event['method'] == 'Network.requestWillBeSent' and
                     'params' in event and
@@ -74,6 +64,14 @@ def ProcessDevTools(events):
                     url = event['params']['record']['data']['url']
                 if (len(url) and url.find('localhost', 0, 20) == -1):
                     started = True
+            if started:
+                if (event['method'] == 'Network.requestWillBeSent' and
+                    (stats['startTime'] == 0 or
+                     event['timestamp'] < stats['startTime'])):
+                    stats['startTime'] = event['timestamp'];
+                if (event['method'] == 'Page.loadEventFired' and
+                    event['timestamp'] > stats['onload']):
+                    stats['onload'] = event['timestamp'];
     return stats
 
 def ProcessFile(dtfile):

@@ -33,9 +33,11 @@ import sys
 import glob
 import json
 
+metrics = ['url', 'domContentLoaded', 'onload']
+
 def ProcessDevTools(events):
-    stats = {"startTime" : 0, "onload" : 0, "endTime" : 0}
     started = False
+    stats = {}
     for event in events:
         if 'method' in event:
             if ('timestamp' not in event and
@@ -46,7 +48,7 @@ def ProcessDevTools(events):
             elif ('timestamp' not in event and
                   'params' in event and
                   'timestamp' in event['params']):
-                event['timestamp'] = event['params']['timestamp'];
+                event['timestamp'] = event['params']['timestamp'] * 1000;
             if not started:
                 url = ''
                 if (event['method'] == 'Network.requestWillBeSent' and
@@ -63,42 +65,54 @@ def ProcessDevTools(events):
                       event['params']['record']['type']=='ResourceSendRequest'):
                     url = event['params']['record']['data']['url']
                 if (len(url) and url.find('localhost', 0, 20) == -1):
+                    stats['url'] = url
                     started = True
             if started:
                 if (event['method'] == 'Network.requestWillBeSent' and
-                    (stats['startTime'] == 0 or
+                    ('startTime' not in stats or
                      event['timestamp'] < stats['startTime'])):
                     stats['startTime'] = event['timestamp'];
                 if (event['method'] == 'Page.loadEventFired' and
-                    event['timestamp'] > stats['onload']):
+                    ('onload' not in stats or
+                     event['timestamp'] > stats['onload'])):
                     stats['onload'] = event['timestamp'];
+                if (event['method'] == 'Page.domContentEventFired' and
+                    ('domContentLoaded' not in stats or
+                     event['timestamp'] > stats['domContentLoaded'])):
+                    stats['domContentLoaded'] = event['timestamp'];
     return stats
 
 def ProcessFile(dtfile):
     file = open(dtfile, "r")
     events = json.load(file)
     file.close()
+    output = dtfile
     if len(events):
         stats = ProcessDevTools(events)
-        if stats["startTime"]:
-            print dtfile
-            if 'onload' in stats:
-                onload = stats["onload"] - stats["startTime"]
-                print("  onload: %.3f" % onload)
-            if 'render' in stats:
-                render = stats["render"] - stats["startTime"]
-                print("  Start Render: %.3f" % render)
-            if 'speedindex' in stats:
-                speedindex = stats["speed index"] - stats["startTime"]
-                print("  Speed Index: %.3f" % speedindex)
+        if ('startTime' in stats and
+            stats['startTime'] > 0):
+            for metric in metrics:
+                if metric in stats:
+                    if metric == 'url':
+                        output += ',"' + stats['url'].replace('"', '""') + '"'
+                    elif stats[metric] >= stats['startTime']:
+                        elapsed = stats[metric] - stats['startTime'];
+                        output += ",%.3f" % (elapsed / 1000)
+                    else:
+                        output += ','
+                else:
+                    output += ','
         else:
-            print dtfile + ": Unable to calculate stats\r\n"
-    else:
-        print dtfile + ": Invalid file (not JSON formatted)\r\n"
+            output += ','
+    print output
 
 if len(sys.argv) == 1:
     print "Usage: dtinfo <dev tools file(s) to process>\r\n"
 else:
+    output = 'File'
+    for metric in metrics:
+        output += ',' + metric
+    print output
     for filespec in sys.argv[1:]:
         for file in glob.glob(filespec):
             ProcessFile(file)
